@@ -1,0 +1,40 @@
+# LeArm mecanum bridge: /odom contains body-frame vx/vy/wz in base_link.
+# EKF output stays /odometry/filtered; never remap it back onto the input /odom.
+ekf_filter_node:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.2
+    two_d_mode: true
+    publish_tf: true
+    print_diagnostics: true
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+    world_frame: odom
+
+    odom0: /odom
+    # x,y,z, roll,pitch,yaw, vx,vy,vz, vroll,vpitch,vyaw, ax,ay,az
+    # Fuse forward, lateral and yaw velocities from the bridge's encoder mapping.
+    # Do not replace lateral velocity with a differential-drive vy=0 constraint.
+    # /odom twist is in child_frame_id=base_link, in m/s and rad/s.
+    # Ignore encoder-integrated pose: it repeats the same wheel measurements.
+    # The bridge supplies positive starting variances; tune them from recordings.
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true,  true,  false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    odom0_differential: false
+
+    imu0: /imu/data
+    # Only gyro Z; do not fuse startup-relative yaw or acceleration initially.
+    imu0_config: [false, false, false,
+                  false, false, false,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 20
+    imu0_differential: false
+    imu0_relative: false
+    imu0_remove_gravitational_acceleration: false

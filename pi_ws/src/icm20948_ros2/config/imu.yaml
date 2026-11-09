@@ -1,0 +1,30 @@
+icm20948:
+  ros__parameters:
+    # Physical pins 3 (GPIO2 SDA) and 5 (GPIO3 SCL) use bus 1.
+    bus: 1
+    address: 104  # 0x68; use 105 for 0x69
+    frame_id: imu_link
+    sample_rate: 100.0
+    calibrate_on_start: true
+    calibration_seconds: 3.0
+    calibration_timeout: 30.0
+    # Sensor axes, SI units. Auto calibration replaces gyro_bias when enabled.
+    gyro_bias: [0.0, 0.0, 0.0]  # rad/s
+    accel_bias: [0.0, 0.0, 0.0]  # m/s^2; gravity is NOT a bias
+    # Starting estimates, not measured sensor specifications. Tune from recordings.
+    gyro_stddev: 0.01
+    accel_stddev: 0.15
+    tilt_stddev: 0.05
+    # Inspired by bsp_imu.c. Alpha is specified at a reference 20ms period;
+    # the node adjusts it to actual dt (100Hz alpha = sqrt(reference alpha)).
+    gyro_lpf_alpha: 0.8
+    accel_lpf_alpha: 0.7
+    lpf_reference_dt: 0.02
+    fusion_gain: 0.8
+    fusion_integral_gain: 0.0001
+    fusion_integral_limit: 2.0
+    # Keep slow real rotations observable for SLAM. Reference code used 0.015.
+    gyro_z_deadband: 0.0
+    accel_dlpf: 5  # ~11.5 Hz
+    gyro_dlpf: 3   # ~51 Hz
+    max_consecutive_errors: 20
