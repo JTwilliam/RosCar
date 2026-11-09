@@ -77,6 +77,12 @@ ROS_DOMAIN_ID=172 ROS_LOCALHOST_ONLY=1 \
 
 历史对接记录为 33 项测试通过，实际 EKF 节点配合模拟输入验证通过。用户实机反馈 IMU 约 100 Hz、雷达约 10 Hz、EKF 约 30 Hz；频率不代表精度标定或两个输入均被有效融合，详见 [进展与验证](docs/进展与验证.md)。
 
+## C++ 迁移学习（新增并行包）
+
+第一阶段新增 `pi_ws/src/learm_bridge_cpp`：协议、麦轮里程计、Linux 非阻塞串口和离线采样工具，提供 Makefile 与 ament_cmake 两种构建入口。原 Python 节点及上述实车启动命令继续使用。C++ ROS 2 桥接节点的源文件刻意留给学习者创建，默认不构建节点。
+
+建议先读 **[迁移顺序与嵌入式 Linux 路线](docs/C++迁移路线.md)**，再按 **[节点练习](pi_ws/src/learm_bridge_cpp/NODE_EXERCISE.md)** 完成节点。当前笔记本是 Windows + WSL Ubuntu 22.04；验证结果见 [C++ 适配验证](docs/C++适配验证.md)，不代表 ARM 或实车验证。
+
 ## 后续维护
 
 后续改动在本仓库完成，验证后提交并标注 **[Ubuntu主机上传]**，正常推送 origin。树莓派更新时 git pull --ff-only 后重新编译受影响工作区并重启节点。详见 [维护说明](docs/维护说明.md)。
