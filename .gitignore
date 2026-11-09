@@ -13,6 +13,8 @@ __pycache__/
 *.db3
 *.mcap
 *.bag
+# Machine-specific launch paths and measured mounting transforms
+scripts/robot.env
 # Local editor, environment and authentication files
 .vscode/
 .idea/

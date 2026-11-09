@@ -30,6 +30,17 @@ STL-06NBJ -> /scan -> 笔记本 RViz
 
 EKF 使用 robot_localization 的 ekf_node，保留麦轮横移，不重复融合编码器积分位姿，暂不融合 IMU 加速度和相对航向。组合启动关闭桥接自身 TF，由 EKF 唯一发布 odom -> base_link。
 
+## 双机职责与启动脚本
+
+上位机为 **Ubuntu 22.04 Desktop + ROS 2 Humble**，运行 RViz；树莓派负责 STM32/IMU/雷达数据采集、里程计、EKF 和机器人 TF，通过 ROS 2 DDS 发送到上位机。主 RViz 不需要在上位机编译传感器包。
+
+- 树莓派：`bash scripts/raspberry_pi.sh all`，也可用 imu/chassis/lidar/imu-tf/lidar-tf 分模块调试。
+- 上位机：`bash scripts/desktop.sh`，加载扫描、轮式里程计、融合里程计与 TF 视图。
+- 两端先复制 `scripts/robot.env.example` 为本地 `scripts/robot.env`；树莓派整套启动要求填写实测安装 TF，或明确复用已有模型 TF。两端保持 ROS_DOMAIN_ID/DDS 网络配置一致。
+- 支持 `--dry-run` 检查配置和依赖，不启动节点。
+
+完整首次编译、配置、分模块启动和网络说明见 **[双机部署与启动](docs/双机部署与启动.md)**。脚本不会安装依赖、修改网络或远程启动设备；当前继续使用原 Python 串口桥。
+
 ## 树莓派获取和编译
 
 ```bash
