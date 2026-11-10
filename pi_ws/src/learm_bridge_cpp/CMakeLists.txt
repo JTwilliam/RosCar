@@ -33,7 +33,8 @@ if(LEARM_BUILD_STUDENT_NODE)
   find_package(geometry_msgs REQUIRED)
   find_package(tf2_ros REQUIRED)
   add_executable(serial_bridge_node src/serial_bridge_node.cpp)
-  target_link_libraries(serial_bridge_node PRIVATE learm_bridge_core)
+  # Humble's ament_target_dependencies below uses the plain link signature.
+  target_link_libraries(serial_bridge_node learm_bridge_core)
   ament_target_dependencies(serial_bridge_node rclcpp std_msgs nav_msgs diagnostic_msgs
                             geometry_msgs tf2_ros)
   install(TARGETS serial_bridge_node DESTINATION lib/${PROJECT_NAME})
