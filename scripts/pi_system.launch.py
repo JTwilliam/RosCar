@@ -37,6 +37,10 @@ def mounting_tf(context, argument, child):
 
 
 def system(context):
+    bridge = LaunchConfiguration('bridge').perform(context)
+    if bridge not in ('python', 'cpp'):
+        raise ValueError('bridge must be python or cpp')
+    bridge_package = 'learm_bridge_cpp' if bridge == 'cpp' else 'icm20948_ros2'
     lidar = boolean(context, 'enable_lidar')
     external_tf = boolean(context, 'external_mount_tf')
     # Validate both mounting transforms before returning any runnable actions.
@@ -48,7 +52,7 @@ def system(context):
     actions = transforms + [
         include('icm20948_ros2', 'imu.launch.py', {
             'bus': LaunchConfiguration('bus'), 'address': LaunchConfiguration('address')}),
-        include('icm20948_ros2', 'chassis_ekf.launch.py', {
+        include(bridge_package, 'chassis_ekf.launch.py', {
             'port': LaunchConfiguration('port'), 'baud': LaunchConfiguration('baud')}),
     ]
     if lidar:
@@ -60,7 +64,7 @@ def generate_launch_description():
     defaults = {
         'port': '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0',
         'baud': '115200', 'bus': '1', 'address': '104',
-        'enable_lidar': 'true', 'external_mount_tf': 'false',
+        'enable_lidar': 'true', 'external_mount_tf': 'false', 'bridge': 'python',
         'imu_mount': '', 'lidar_mount': '',
     }
     return LaunchDescription([

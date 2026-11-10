@@ -1,4 +1,6 @@
-# 由你创建的 ROS 2 C++ 节点
+# ROS 2 C++ 节点分步学习记录
+
+**2026-11-10 更新：用户已要求补齐实现，当前 `src/serial_bridge_node.cpp` 已提供完整串口桥，节点名为 `learm_serial_bridge`，构建开关默认 ON。以下保留最初的手写练习要求供逐段学习，不再表示文件缺失或功能未完成。当前编译、运行和测试以 [包说明](README.md) 为准。**
 
 本练习刻意没有提供 `src/serial_bridge_node.cpp`。请你亲手创建它，完成 `main → rclcpp::Node → 参数 → timer → 发布器 → 资源释放` 的流程。业务核心已经实现，可以边对照原 Python 节点边调用，暂不需要自己重写协议算法。
 

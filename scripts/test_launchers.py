@@ -22,7 +22,7 @@ class Launchers(unittest.TestCase):
     def context(self, **overrides):
         context = LaunchContext()
         context.launch_configurations.update({
-            'enable_lidar': 'true', 'external_mount_tf': 'false',
+            'enable_lidar': 'true', 'external_mount_tf': 'false', 'bridge': 'python',
             'imu_mount': '0.1 0.2 0.3 0 0 1.57',
             'lidar_mount': '0 0 0.18 0 0 0',
             'port': '/dev/test-stm32', 'baud': '115200', 'bus': '1', 'address': '104',
@@ -42,6 +42,13 @@ class Launchers(unittest.TestCase):
                                                   imu_mount='', lidar_mount=''))
         self.assertEqual(len(actions), 2)
         self.assertTrue(all(isinstance(a, IncludeLaunchDescription) for a in actions))
+
+    def test_cpp_bridge_selects_cpp_package(self):
+        with patch.object(SYSTEM, 'get_package_share_directory', return_value='/mock/share') as lookup:
+            SYSTEM.system(self.context(bridge='cpp'))
+        self.assertIn(('learm_bridge_cpp',), [call.args for call in lookup.call_args_list])
+        with self.assertRaises(ValueError):
+            SYSTEM.system(self.context(bridge='invalid'))
 
     def test_invalid_mounts_fail_before_package_lookup(self):
         for mount in ('', '0 0 0', '0 0 0 0 0 nan', '0 0 0 0 0 inf'):

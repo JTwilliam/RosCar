@@ -1,5 +1,7 @@
 # Python → C++ 迁移与嵌入式 Linux 学习路线
 
+**2026-11-10 当前进度：完整 C++ 底盘桥已实现，包括 ROS 编码器/里程计/可选 TF、诊断和断线重连。默认构建节点，脚本通过 `BRIDGE_IMPL=cpp` 选择。原“留给学习者创建”的阶段目标已经完成，下文保留第一阶段教学设计；当前命令以 [包说明](../pi_ws/src/learm_bridge_cpp/README.md) 为准。IMU 的 C++ 迁移尚未开始。**
+
 日期：2026-11-09。源码以 RosCar 为准；当前笔记本实际是 Windows + WSL Ubuntu 22.04，并非历史文档所述的原生 Ubuntu 主机。树莓派环境沿用历史记录 Ubuntu Server 22.04 / ROS 2 Humble，本次没有登录板卡核实版本。
 
 ## 从哪里开始，按重要性排序

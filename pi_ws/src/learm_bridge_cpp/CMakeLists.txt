@@ -18,10 +18,10 @@ target_link_libraries(learm_replay PRIVATE learm_bridge_core)
 install(TARGETS learm_replay DESTINATION lib/${PROJECT_NAME})
 install(TARGETS learm_bridge_core EXPORT export_learm_bridge_core ARCHIVE DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
 
-# Intentionally absent: the learner creates this file and writes the ROS wrapper.
-# Re-run colcon with --cmake-force-configure after creating it.
-option(LEARM_BUILD_STUDENT_NODE "Build the learner's serial bridge node" OFF)
+# Retain the original learning switch for existing build directories.
+option(LEARM_BUILD_STUDENT_NODE "Build the ROS 2 serial bridge node" ON)
 if(LEARM_BUILD_STUDENT_NODE)
   if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/serial_bridge_node.cpp")
     message(FATAL_ERROR "Create src/serial_bridge_node.cpp using NODE_EXERCISE.md first.")
@@ -50,6 +50,13 @@ if(BUILD_TESTING)
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check_python_parity.py
             $<TARGET_FILE:learm_replay>)
   set_tests_properties(learm_python_parity PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+  if(LEARM_BUILD_STUDENT_NODE)
+    add_test(NAME learm_ros_bridge
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/test_ros_bridge.py
+              $<TARGET_FILE:serial_bridge_node>)
+    set_tests_properties(learm_ros_bridge PROPERTIES TIMEOUT 60
+      RUN_SERIAL TRUE ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;ROS_DOMAIN_ID=173;ROS_LOCALHOST_ONLY=1;ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_logs")
+  endif()
 endif()
 
 ament_export_targets(export_learm_bridge_core HAS_LIBRARY_TARGET)

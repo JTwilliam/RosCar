@@ -1,4 +1,17 @@
-# C++ 基础适配验证
+# C++ 适配验证
+
+## 2026-11-10：完整底盘桥
+
+已补齐 `serial_bridge_node.cpp`：原 Python 的全部桥接参数、编码器/odom/TF 发布、诊断键与故障级别、2s 接收率窗口、5ms 轮询和限频重连。新增 poll HUP 检测，重连清除半帧并保留累计统计。独立/桥+EKF launch 已安装；脚本支持 `BRIDGE_IMPL=cpp`，默认 Python。
+
+WSL Ubuntu22.04/Humble fresh 构建目录 `pi_ws/build/cpp_bridge_full` 编译通过，3 项 CTest 通过（核心、161 条 Python 等价、实际节点 PTY/ROS 集成）。ROS 集成验证缺失设备重试、分段和批量输入、vx/vy/wz与协方差、全部诊断键、CRC/溢出、fault、帧过期、固件时间倒退、设备断开与新PTY重连、累计统计保留、TF关闭/开启、无效几何参数和SIGINT正常退出。脚本新增C++选择测试，部署流程仍需板上验证。
+
+本机 FastDDS 出现“能发现发布者但无法收消息”，独立最小 Python DiagnosticArray/String 跨进程测试也复现，证实并非C++专有。使用本机已安装 `rmw_cyclonedds_cpp`、`ROS_LOCALHOST_ONLY=1`、清除自定义DDS配置后，集成测试通过。未改系统网络或实际机器人DDS配置。
+
+Windows文件工具保留mtime，旧学习目录一度复用旧节点对象；改为fresh构建目录重新编译完整源码并验证。后续命令见 [包说明](../pi_ws/src/learm_bridge_cpp/README.md)。本次仍没有ARM编译或真实USB-UART/实车验证；IMU未迁移。
+
+以下为2026-11-09第一阶段历史记录，关于“节点不存在”的描述不代表当前状态。
+
 
 日期：2026-11-09。执行位置：Windows 笔记本的 WSL2 `Ubuntu-22.04`，项目 `/mnt/e/Linux_Learning/RosCar`。本次未登录树莓派、未访问真实 UART/I2C、未下载或安装依赖。
 

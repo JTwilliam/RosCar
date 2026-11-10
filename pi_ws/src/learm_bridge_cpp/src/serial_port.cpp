@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdexcept>
 #include <system_error>
 #include <termios.h>
@@ -60,6 +61,16 @@ std::size_t SerialPort::read_some(std::uint8_t* data, std::size_t capacity) {
   if (!is_open()) throw std::logic_error("serial port is closed");
   if (capacity == 0) return 0;
   if (!data) throw std::invalid_argument("null serial read buffer");
+  pollfd readiness{fd_, POLLIN, 0};
+  const int result = ::poll(&readiness, 1, 0);
+  if (result < 0) {
+    if (errno == EINTR) return 0;
+    fail("poll serial port");
+  }
+  if (readiness.revents & (POLLHUP | POLLERR | POLLNVAL)) {
+    throw std::system_error(EIO, std::generic_category(), "serial port disconnected");
+  }
+  if (result == 0 || !(readiness.revents & POLLIN)) return 0;
   const auto count = ::read(fd_, data, capacity);
   if (count >= 0) return static_cast<std::size_t>(count);
   if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) return 0;

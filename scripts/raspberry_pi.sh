@@ -28,6 +28,12 @@ case "$mode" in all|imu|chassis|lidar|imu-tf|lidar-tf) ;; *) usage; fail "Unknow
 load_config
 port="${STM32_PORT:-/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0}"
 baud="${STM32_BAUD:-115200}"
+bridge="${BRIDGE_IMPL:-python}"
+case "$bridge" in
+  python) bridge_package=icm20948_ros2; bridge_node_package=learm_bridge ;;
+  cpp) bridge_package=learm_bridge_cpp; bridge_node_package=learm_bridge_cpp ;;
+  *) fail 'BRIDGE_IMPL must be python or cpp' ;;
+esac
 with_lidar="${ENABLE_LIDAR:-true}"
 external_tf="${USE_EXTERNAL_MOUNT_TF:-false}"
 [[ "$with_lidar" == true || "$with_lidar" == false ]] || fail 'ENABLE_LIDAR must be true or false'
@@ -46,7 +52,7 @@ if [[ "$mode" == all || "$mode" == imu || "$mode" == chassis ]]; then
   require_package icm20948_ros2
 fi
 if [[ "$mode" == all || "$mode" == chassis ]]; then
-  require_package learm_bridge
+  require_package "$bridge_node_package"
   require_package robot_localization
 fi
 if [[ "$mode" == lidar || ( "$mode" == all && "$with_lidar" == true ) ]]; then
@@ -58,7 +64,7 @@ case "$mode" in
     require_package tf2_ros
     run_command ros2 launch "$ROSCAR_ROOT/scripts/pi_system.launch.py" \
       "port:=$port" "baud:=$baud" "bus:=${IMU_BUS:-1}" "address:=${IMU_ADDRESS:-104}" \
-      "enable_lidar:=$with_lidar" "external_mount_tf:=$external_tf" \
+      "enable_lidar:=$with_lidar" "external_mount_tf:=$external_tf" "bridge:=$bridge" \
       "imu_mount:=${IMU_MOUNT:-}" "lidar_mount:=${LIDAR_MOUNT:-}" "${extra[@]}"
     ;;
   imu)
@@ -66,7 +72,7 @@ case "$mode" in
       "bus:=${IMU_BUS:-1}" "address:=${IMU_ADDRESS:-104}" "${extra[@]}"
     ;;
   chassis)
-    run_command ros2 launch icm20948_ros2 chassis_ekf.launch.py \
+    run_command ros2 launch "$bridge_package" chassis_ekf.launch.py \
       "port:=$port" "baud:=$baud" "${extra[@]}"
     ;;
   lidar) run_command ros2 launch ldlidar stl06n.launch.py "${extra[@]}" ;;

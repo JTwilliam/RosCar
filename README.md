@@ -90,9 +90,9 @@ ROS_DOMAIN_ID=172 ROS_LOCALHOST_ONLY=1 \
 
 ## C++ 迁移学习（新增并行包）
 
-第一阶段新增 `pi_ws/src/learm_bridge_cpp`：协议、麦轮里程计、Linux 非阻塞串口和离线采样工具，提供 Makefile 与 ament_cmake 两种构建入口。原 Python 节点及上述实车启动命令继续使用。C++ ROS 2 桥接节点的源文件刻意留给学习者创建，默认不构建节点。
+`pi_ws/src/learm_bridge_cpp` 已完成底盘串口桥：协议、麦轮里程计、Linux 非阻塞串口、重连、编码器/odom/TF 与兼容诊断。提供 Makefile 核心构建和 ament_cmake ROS 节点构建；节点默认构建。树莓派脚本默认仍用 Python，板上编译验证后在本地配置设 `BRIDGE_IMPL=cpp` 可切换，IMU 仍用 Python。详见 [C++ 包说明](pi_ws/src/learm_bridge_cpp/README.md)。
 
-建议先读 **[迁移顺序与嵌入式 Linux 路线](docs/C++迁移路线.md)**，再按 **[节点练习](pi_ws/src/learm_bridge_cpp/NODE_EXERCISE.md)** 完成节点。当前笔记本是 Windows + WSL Ubuntu 22.04；验证结果见 [C++ 适配验证](docs/C++适配验证.md)，不代表 ARM 或实车验证。
+建议先读 **[迁移顺序与嵌入式 Linux 路线](docs/C++迁移路线.md)**，再按 **[节点学习记录](pi_ws/src/learm_bridge_cpp/NODE_EXERCISE.md)** 阅读已完成的节点。当前笔记本是 Windows + WSL Ubuntu 22.04；验证结果见 [C++ 适配验证](docs/C++适配验证.md)，不代表 ARM 或实车验证。
 
 ## 后续维护
 

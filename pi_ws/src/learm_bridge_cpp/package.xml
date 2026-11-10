@@ -2,7 +2,7 @@
 <package format="3">
   <name>learm_bridge_cpp</name>
   <version>0.1.0</version>
-  <description>Staged C++ migration: LeArm telemetry core and Linux serial adapter.</description>
+  <description>LeArm C++ serial bridge, mecanum odometry and diagnostics.</description>
   <maintainer email="maintainer@example.invalid">Project Maintainer</maintainer>
   <license>Apache-2.0</license>
   <buildtool_depend>ament_cmake</buildtool_depend>
@@ -12,6 +12,11 @@
   <depend>diagnostic_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_ros</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
   <test_depend>python3</test_depend>
+  <test_depend>rclpy</test_depend>
+  <test_depend>tf2_msgs</test_depend>
   <export><build_type>ament_cmake</build_type></export>
 </package>
