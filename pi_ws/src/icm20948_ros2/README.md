@@ -1,5 +1,7 @@
 # ICM-20948：树莓派 Linux I²C / ROS 2 Humble
 
+2026-11-10目录更新：树莓派统一在 [pi_ws](../../README.md) 中编译/启动，输出install/pi_runtime；上位机纯显示已独立为 [host_ws](../../../host_ws/README.md)，无需编译本硬件包。下文保留寄存器、硬件和历史逐包操作说明；日常启动以两个工作区README为准。
+
 本包根据工作区 `references/ICM20948_WE/src/ICM20948_WE.{h,cpp}` 的寄存器定义、
 初始化及换算方式编写 Linux 读取实现，不依赖 Arduino `Wire`，原库 MIT 许可保留于 LICENSE。
 姿态估计参考你提供的 `references/ICM20948_WE/bsp_imu.c`：软件低通、六轴 Mahony 比例/有限积分反馈，

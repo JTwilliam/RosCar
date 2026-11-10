@@ -24,7 +24,7 @@ load_ros() {
   # ROS setup scripts are not guaranteed to work under nounset.
   source /opt/ros/humble/setup.bash
   printf 'ROS_DOMAIN_ID=%s ROS_LOCALHOST_ONLY=%s RMW=%s\n' \
-    "$ROS_DOMAIN_ID" "$ROS_LOCALHOST_ONLY" "${RMW_IMPLEMENTATION:-default}"
+    "${ROS_DOMAIN_ID:-30}" "${ROS_LOCALHOST_ONLY:-0}" "${RMW_IMPLEMENTATION:-default}"
 }
 
 load_overlay() {

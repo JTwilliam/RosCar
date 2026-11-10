@@ -1,2 +1,4 @@
 # Linux entry points must survive checkout on a Windows development host.
 scripts/*.sh text eol=lf
+host_ws/*.sh text eol=lf
+pi_ws/*.sh text eol=lf

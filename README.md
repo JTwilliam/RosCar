@@ -1,101 +1,74 @@
 # RosCar
 
-基于树莓派 4B、STM32F103RBT6、麦克纳姆轮、STL-06NBJ 和 ICM-20948 的 ROS 2 项目。
+树莓派4B、STM32F103RBT6、麦克纳姆底盘、STL06N雷达、ICM-20948与ROS2 Humble项目。维护来源：Ubuntu主机上传。
 
-**维护来源：Ubuntu 主机上传。** 本项目后续源码、配置和运行文档统一在本仓库维护。
+## 拉取后应该进入哪个目录
 
-- 树莓派：Ubuntu Server 22.04、ROS 2 Humble，运行传感器、串口桥和 EKF。
-- Ubuntu 笔记本：运行 RViz，查看扫描和融合里程计。
-- 当前阶段：雷达、IMU、麦轮里程计和 EKF 对接；尚未完成 SLAM/Nav2 实车验证。
+| 执行机器 | 工作区 | 编译与启动指导 | 职责 |
+| --- | --- | --- | --- |
+| Ubuntu22.04 Desktop上位机 | `host_ws` | **[上位机指令](host_ws/README.md)** | RViz、可选IMU显示，不访问硬件 |
+| Raspberry Pi4B / Ubuntu22.04 / Humble | `pi_ws` | **[树莓派指令](pi_ws/README.md)** | STM32、IMU、雷达采集，里程计、EKF、机器人TF |
+| 笔记本WSL学习环境 | `pi_ws`或`host_ws` | 按各自README的模拟部分 | 本机编译测试，不代表ARM或实车验证 |
 
-## 目录
+两台机器各自拉取整个Git仓库，再进入自己的工作区。不要在仓库根目录直接colcon build，不要共享或复制build/install。原lidar_ws源码已并入pi_ws，旧目录只作迁移提示。
 
-```text
-pi_ws/src/learm_bridge/      STM32 协议、编码器、麦轮里程计和诊断
-pi_ws/src/icm20948_ros2/     I2C IMU、校准/滤波、EKF 配置和可视化
-lidar_ws/src/ldlidar/       ROS 2 雷达节点与 launch
-lidar_ws/src/ldlidar_driver/ 雷达 SDK，必须与 ldlidar 相邻
-references/                原始 IMU/BSP、底盘运动学与厂商参考
-docs/                      运行手册、验证范围和维护方式
-```
-
-## 数据流
-
-```text
-STM32 编码器 -> learm_bridge -> /odom (vx, vy, wz) --+
-                                                  +-> EKF -> /odometry/filtered
-ICM-20948 -> /imu/data (gyro Z) --------------------+          odom -> base_link TF
-STL-06NBJ -> /scan -> 笔记本 RViz
-```
-
-EKF 使用 robot_localization 的 ekf_node，保留麦轮横移，不重复融合编码器积分位姿，暂不融合 IMU 加速度和相对航向。组合启动关闭桥接自身 TF，由 EKF 唯一发布 odom -> base_link。
-
-## 双机职责与启动脚本
-
-上位机为 **Ubuntu 22.04 Desktop + ROS 2 Humble**，运行 RViz；树莓派负责 STM32/IMU/雷达数据采集、里程计、EKF 和机器人 TF，通过 ROS 2 DDS 发送到上位机。主 RViz 不需要在上位机编译传感器包。
-
-- 树莓派：`bash scripts/raspberry_pi.sh all`，也可用 imu/chassis/lidar/imu-tf/lidar-tf 分模块调试。
-- 上位机：`bash scripts/desktop.sh`，加载扫描、轮式里程计、融合里程计与 TF 视图。
-- 两端先复制 `scripts/robot.env.example` 为本地 `scripts/robot.env`；树莓派整套启动要求填写实测安装 TF，或明确复用已有模型 TF。两端保持 ROS_DOMAIN_ID/DDS 网络配置一致。
-- 支持 `--dry-run` 检查配置和依赖，不启动节点。
-
-完整首次编译、配置、分模块启动和网络说明见 **[双机部署与启动](docs/双机部署与启动.md)**。脚本不会安装依赖、修改网络或远程启动设备；当前继续使用原 Python 串口桥。
-
-## 树莓派获取和编译
-
-```bash
-git clone https://github.com/JTwilliam/RosCar.git ~/RosCar
-source /opt/ros/humble/setup.bash
-sudo apt install python3-colcon-common-extensions python3-serial python3-smbus \
-  i2c-tools ros-humble-robot-localization ros-humble-tf2-ros
-
-cd ~/RosCar/pi_ws
-colcon build --symlink-install --packages-select learm_bridge icm20948_ros2
-
-cd ~/RosCar/lidar_ws
-colcon build --symlink-install --packages-select ldlidar --cmake-args -DBUILD_TESTING=OFF
-```
-
-接线与 I2C/UART 准备见 [IMU 说明](pi_ws/src/icm20948_ros2/README.md) 和 [雷达说明](lidar_ws/README.md)。每个终端的完整命令和 RViz 设置见 **[运行手册](docs/运行手册.md)**。安装 TF 需填实测值，不能将水平安装自动等同于零旋转。
-
-## 当前接口
-
-| 接口 | 发布者 | 内容 |
-| --- | --- | --- |
-| /scan | ldlidar | 扫描，约 10 Hz，laser |
-| /imu/data_raw | imu_node | 校准后的原始惯性数据 |
-| /imu/data | imu_node | 滤波惯性数据与六轴姿态，约 100 Hz，imu_link |
-| /odom | learm_serial_bridge | 编码器麦轮里程计，odom/base_link |
-| /learm/wheel_encoders | learm_serial_bridge | FR、RR、FL、RL 原始累计计数 |
-| /odometry/filtered | ekf_filter_node | 融合里程计，约 30 Hz |
-| odom -> base_link | ekf_filter_node | 融合底盘位姿 |
-
-当前网络：笔记本共享 Wi-Fi，有线 192.168.137.1，树莓派 192.168.137.100；ROS_DOMAIN_ID=30，ROS_LOCALHOST_ONLY=0。各终端保留已验证的 DDS 配置。
-
-## 软件验证
-
-在 ROS Humble 环境运行，无需接真实传感器：
+## 上位机常用命令（仅Ubuntu桌面执行）
 
 ```bash
 cd ~/RosCar
-source /opt/ros/humble/setup.bash
-PYTHONDONTWRITEBYTECODE=1 \
-PYTHONPATH="$PWD/pi_ws/src/learm_bridge:$PWD/pi_ws/src/icm20948_ros2:$PYTHONPATH" \
-ROS_DOMAIN_ID=172 ROS_LOCALHOST_ONLY=1 \
-/usr/bin/python3 -m pytest -q -p no:cacheprovider \
-  pi_ws/src/learm_bridge/test pi_ws/src/icm20948_ros2/test
+git status --short
+git pull --ff-only origin main
+cd host_ws
+bash build.sh
+cp -n host.env.example host.env
+# 按本机DDS配置编辑host.env
+bash start.sh --dry-run
+bash start.sh
 ```
 
-历史对接记录为 33 项测试通过，实际 EKF 节点配合模拟输入验证通过。用户实机反馈 IMU 约 100 Hz、雷达约 10 Hz、EKF 约 30 Hz；频率不代表精度标定或两个输入均被有效融合，详见 [进展与验证](docs/进展与验证.md)。
+## 树莓派常用命令（仅树莓派执行）
 
-## C++ 迁移学习（新增并行包）
+```bash
+cd ~/RosCar
+git status --short
+git pull --ff-only origin main
+cd pi_ws
+bash build.sh
+cp -n pi.env.example pi.env
+# 必须填实测安装TF及正确设备路径/DDS设置
+nano pi.env
+bash start.sh all --dry-run
+bash start.sh all
+```
 
-`pi_ws/src/learm_bridge_cpp` 已完成底盘串口桥：协议、麦轮里程计、Linux 非阻塞串口、重连、编码器/odom/TF 与兼容诊断。提供 Makefile 核心构建和 ament_cmake ROS 节点构建；节点默认构建。树莓派脚本默认仍用 Python，板上编译验证后在本地配置设 `BRIDGE_IMPL=cpp` 可切换，IMU 仍用 Python。详见 [C++ 包说明](pi_ws/src/learm_bridge_cpp/README.md)。
+首次依赖安装、分模块启动及检查命令分别放在工作区README。旧scripts/robot.env不自动搬移，请保留其中实测值并复制到新配置。新构建输出分别使用install/host_runtime与install/pi_runtime，避免旧CMake缓存；脚本按自身位置定位，不要求固定用户名或绝对仓库路径。
 
-建议先读 **[迁移顺序与嵌入式 Linux 路线](docs/C++迁移路线.md)**，再按 **[节点学习记录](pi_ws/src/learm_bridge_cpp/NODE_EXERCISE.md)** 阅读已完成的节点。当前笔记本是 Windows + WSL Ubuntu 22.04；验证结果见 [C++ 适配验证](docs/C++适配验证.md)，不代表 ARM 或实车验证。
+## 源码布局
 
-## 后续维护
+```text
+host_ws/
+  README.md  build.sh  start.sh  host.env.example
+  src/roscar_visualization/   纯显示包、RViz与IMU显示
+pi_ws/
+  README.md  build.sh  start.sh  pi.env.example
+  scripts/pi_system.launch.py
+  src/learm_bridge_cpp/       C++串口桥、麦轮里程计与诊断
+  src/learm_bridge/           Python回退桥和监视器
+  src/icm20948_ros2/          IMU采集、滤波与EKF配置
+  src/ldlidar/                雷达ROS包
+  src/ldlidar_driver/         相邻SDK源码，非独立ROS包
+scripts/                     共用函数、兼容入口与编排测试
+references/                  厂商/原固件参考，不能当完整STM32工程烧录
+```
 
-后续改动在本仓库完成，验证后提交并标注 **[Ubuntu主机上传]**，正常推送 origin。树莓派更新时 git pull --ff-only 后重新编译受影响工作区并重启节点。详见 [维护说明](docs/维护说明.md)。
+## 数据和坐标约定
 
-第三方版权和参考范围见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+STM32原始轮序FR、RR、FL、RL。桥输出`/odom`的vx、vy、wz，保留麦轮横移；IMU输出`/imu/data`，EKF只融合其wz，输出`/odometry/filtered`。只有EKF发布odom→base_link；传感器安装TF使用实测值。雷达`/scan`约10Hz，IMU约100Hz，EKF约30Hz是历史用户反馈，不等于精度验收。
+
+两个主机通过DDS传输，ROS_DOMAIN_ID一致、ROS_LOCALHOST_ONLY=0。网络地址按Ubuntu现场配置，不能把旧Windows共享网络192.168.137.x当作必然。各自主机保留已验证的RMW/DDS设置和时间同步。
+
+## 当前迁移状态与验证
+
+C++底盘桥已有编码器/odom/可选TF、非阻塞串口、重连和兼容诊断；IMU仍为Python，雷达本来就是C++，EKF复用robot_localization。[C++说明](pi_ws/src/learm_bridge_cpp/README.md)、[迁移路线](docs/C++迁移路线.md)、[验证范围](docs/进展与验证.md)。
+
+部署总览见[双机部署](docs/双机部署与启动.md)，[运行手册](docs/运行手册.md)只索引两端指令。第三方来源见[THIRD_PARTY.md](THIRD_PARTY.md)。维护时检查本地修改，验证后按约定提交并正常推送，详见[维护说明](docs/维护说明.md)。

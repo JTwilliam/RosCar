@@ -13,7 +13,7 @@ from launch.actions import IncludeLaunchDescription
 from launch_ros.actions import Node
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location('pi_system', ROOT / 'scripts/pi_system.launch.py')
+SPEC = importlib.util.spec_from_file_location('pi_system', ROOT / 'pi_ws/scripts/pi_system.launch.py')
 SYSTEM = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(SYSTEM)
 
@@ -74,7 +74,7 @@ class Launchers(unittest.TestCase):
             self.assertIn('Unknown mode', result.stderr)
 
     def test_rviz_topics_and_qos(self):
-        data = yaml.safe_load((ROOT / 'config/desktop.rviz').read_text())['Visualization Manager']
+        data = yaml.safe_load((ROOT / 'host_ws/src/roscar_visualization/rviz/desktop.rviz').read_text())['Visualization Manager']
         self.assertEqual(data['Global Options']['Fixed Frame'], 'odom')
         displays = {d['Name']: d for d in data['Displays']}
         self.assertEqual(displays['Laser Scan']['Topic']['Reliability Policy'], 'Best Effort')

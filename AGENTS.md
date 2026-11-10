@@ -5,7 +5,8 @@
 - 编辑本仓库中的源码，不要回到上级目录的历史散落副本继续维护。不要在 /mnt/data 的父级 Git 仓库执行项目提交。
 - 改动前检查 Git 状态及远端更新，保留用户未提交的工作。不要强制推送、覆盖远端历史或提交无关文件。
 - pi_ws/src/learm_bridge 是 STM32 串口解码和麦轮里程计；pi_ws/src/icm20948_ros2 是 IMU、EKF 配置及可视化。
-- lidar_ws/src/ldlidar 与 ldlidar_driver 必须保持相邻；ldlidar_driver 是源文件目录，不是独立 ROS 包。
+- 雷达已迁入 pi_ws/src/ldlidar 与 pi_ws/src/ldlidar_driver，两者必须保持相邻；ldlidar_driver 是源文件目录，不是独立 ROS 包。旧 lidar_ws 不再构建。
+- host_ws 是上位机纯显示工作区；pi_ws 是树莓派采集/处理工作区。两端命令分别写入各自 README、build.sh、start.sh；构建限定 --base-paths src，产物使用 host_runtime/pi_runtime，避免复用移动前缓存。
 - 所有传感器和融合在树莓派运行，笔记本仅显示。不得把本机模拟测试描述为树莓派实车验证。
 - 轮子原始编码器顺序为 FR、RR、FL、RL，保留已提供的有符号映射。EKF 使用 vx、vy、wz 与 IMU wz，不能增加差速底盘 vy=0 约束。
 - 桥接输入 /odom，融合输出 /odometry/filtered；只由 EKF 发布 odom -> base_link。IMU 和雷达安装 TF 必须依据实际测量。

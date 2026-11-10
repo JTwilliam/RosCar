@@ -48,7 +48,7 @@ if [[ "$mode" == lidar-tf || ( "$mode" == all && "$external_tf" == false && "$wi
 fi
 load_ros
 if [[ "$mode" == all || "$mode" == imu || "$mode" == chassis ]]; then
-  load_overlay "${PI_INSTALL:-$ROSCAR_ROOT/pi_ws/install}"
+  load_overlay "${PI_INSTALL:-$ROSCAR_ROOT/pi_ws/install/pi_runtime}"
   require_package icm20948_ros2
 fi
 if [[ "$mode" == all || "$mode" == chassis ]]; then
@@ -56,13 +56,13 @@ if [[ "$mode" == all || "$mode" == chassis ]]; then
   require_package robot_localization
 fi
 if [[ "$mode" == lidar || ( "$mode" == all && "$with_lidar" == true ) ]]; then
-  load_overlay "${LIDAR_INSTALL:-$ROSCAR_ROOT/lidar_ws/install}"
+  load_overlay "${LIDAR_INSTALL:-$ROSCAR_ROOT/pi_ws/install/pi_runtime}"
   require_package ldlidar
 fi
 case "$mode" in
   all)
     require_package tf2_ros
-    run_command ros2 launch "$ROSCAR_ROOT/scripts/pi_system.launch.py" \
+    run_command ros2 launch "$ROSCAR_ROOT/pi_ws/scripts/pi_system.launch.py" \
       "port:=$port" "baud:=$baud" "bus:=${IMU_BUS:-1}" "address:=${IMU_ADDRESS:-104}" \
       "enable_lidar:=$with_lidar" "external_mount_tf:=$external_tf" "bridge:=$bridge" \
       "imu_mount:=${IMU_MOUNT:-}" "lidar_mount:=${LIDAR_MOUNT:-}" "${extra[@]}"

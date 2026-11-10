@@ -1,5 +1,7 @@
 # learm_bridge_cpp
 
+2026-11-10工作区整理：真实树莓派部署统一按 [pi_ws操作指南](../../README.md) 使用build.sh/start.sh，输出install/pi_runtime；上位机只进入host_ws。以下cpp_bridge_full仍是独立的WSL软件测试目录，不是正式启动脚本默认overlay。
+
 C++17 STM32 串口桥，已实现原 Python `LeArmSerialBridge` 的串口接收、COBS/CRC32C 解码、原始编码器、麦轮里程计、可选 TF、重连和诊断功能。IMU 仍为 Python，雷达和 EKF 继续复用现有组件。
 
 ## 编译与测试（笔记本 WSL Ubuntu 22.04 / Humble）
