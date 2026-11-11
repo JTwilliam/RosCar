@@ -49,11 +49,16 @@ def system(context):
         transforms.append(mounting_tf(context, 'imu_mount', 'imu_link'))
         if lidar:
             transforms.append(mounting_tf(context, 'lidar_mount', 'laser'))
+    bridge_arguments = {'port': LaunchConfiguration('port'), 'baud': LaunchConfiguration('baud')}
+    health_params = LaunchConfiguration('health_params_file').perform(context)
+    if health_params:
+        if bridge != 'cpp':
+            raise ValueError('health_params_file requires bridge:=cpp')
+        bridge_arguments['health_params_file'] = health_params
     actions = transforms + [
         include('icm20948_ros2', 'imu.launch.py', {
             'bus': LaunchConfiguration('bus'), 'address': LaunchConfiguration('address')}),
-        include(bridge_package, 'chassis_ekf.launch.py', {
-            'port': LaunchConfiguration('port'), 'baud': LaunchConfiguration('baud')}),
+        include(bridge_package, 'chassis_ekf.launch.py', bridge_arguments),
     ]
     if lidar:
         actions.append(include('ldlidar', 'stl06n.launch.py'))
@@ -65,7 +70,7 @@ def generate_launch_description():
         'port': '/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0',
         'baud': '115200', 'bus': '1', 'address': '104',
         'enable_lidar': 'true', 'external_mount_tf': 'false', 'bridge': 'python',
-        'imu_mount': '', 'lidar_mount': '',
+        'imu_mount': '', 'lidar_mount': '', 'health_params_file': '',
     }
     return LaunchDescription([
         *[DeclareLaunchArgument(name, default_value=value) for name, value in defaults.items()],

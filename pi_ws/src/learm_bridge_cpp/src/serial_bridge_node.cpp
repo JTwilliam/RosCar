@@ -1,3 +1,4 @@
+#include "learm_bridge_cpp/health.hpp"
 #include "learm_bridge_cpp/odometry.hpp"
 #include "learm_bridge_cpp/protocol.hpp"
 #include "learm_bridge_cpp/serial_port.hpp"
@@ -124,6 +125,27 @@ class SerialBridgeNode : public rclcpp::Node {
     for (std::size_t index = 0; index < variances.size(); ++index) {
       twist_covariance_[index * 7] = variances[index];
     }
+    health_thresholds_.health_stale_after_s = declare_parameter<double>("health_stale_after_s", 0.5);
+    health_thresholds_.offline_after_s = declare_parameter<double>("health_offline_after_s", 2.0);
+    const auto deadlines = declare_parameter<std::vector<std::int64_t>>(
+        "task_deadlines_ms", {100, 50, 100, 500, 250});
+    const auto stacks = declare_parameter<std::vector<std::int64_t>>(
+        "stack_warning_words", {32, 64, 80, 80, 40});
+    const auto heap = declare_parameter<std::int64_t>("minimum_heap_bytes", 1024);
+    const auto chassis_age = declare_parameter<std::int64_t>("chassis_max_age_ms", 100);
+    if (deadlines.size() != 5 || stacks.size() != 5 || heap <= 0 ||
+        heap > std::numeric_limits<std::uint32_t>::max() || chassis_age <= 0 || chassis_age >= kAgeSaturated) {
+      throw std::invalid_argument("health arrays need five entries and thresholds must fit wire units");
+    }
+    for (std::size_t i = 0; i < 5; ++i) {
+      if (deadlines[i] <= 0 || deadlines[i] >= kAgeSaturated || stacks[i] <= 0 || stacks[i] > 65535)
+        throw std::invalid_argument("health deadline/stack thresholds outside valid range");
+      health_thresholds_.task_deadlines_ms[i] = static_cast<std::uint16_t>(deadlines[i]);
+      health_thresholds_.stack_warning_words[i] = static_cast<std::uint16_t>(stacks[i]);
+    }
+    health_thresholds_.minimum_heap_bytes = static_cast<std::uint32_t>(heap);
+    health_thresholds_.chassis_max_age_ms = static_cast<std::uint16_t>(chassis_age);
+    health_thresholds_.validate();
     odometry_ = std::make_unique<MecanumOdometry>(radius, base, track, counts);
     encoder_publisher_ = create_publisher<std_msgs::msg::Int32MultiArray>(
         "/learm/wheel_encoders", 10);
@@ -151,6 +173,7 @@ class SerialBridgeNode : public rclcpp::Node {
       // baseline. Counters remain cumulative across every connection.
       cumulative_stats_ = sum_stats(cumulative_stats_, decoder_.stats());
       decoder_ = ProtocolDecoder{};
+      health_tracker_.connected();
       last_serial_error_.clear();
       RCLCPP_INFO(get_logger(), "Opened serial port %s", port_.c_str());
       return true;
@@ -187,6 +210,15 @@ class SerialBridgeNode : public rclcpp::Node {
     }
     if (count == 0) return;
     for (const auto& frame : decoder_.feed(read_buffer_.data(), count)) {
+      if (frame.message_type == kMsgHealthState) {
+        try {
+          health_tracker_.update(decode_health_state(frame),
+              std::chrono::duration<double>(SteadyClock::now().time_since_epoch()).count());
+        } catch (const std::invalid_argument&) {
+          ++payload_format_errors_;
+        }
+        continue;
+      }
       if (frame.message_type != kMsgChassisState) continue;
       ChassisState state;
       try {
@@ -249,13 +281,19 @@ class SerialBridgeNode : public rclcpp::Node {
     status.hardware_id = "stm32f103rbt6";
     const auto fault_flags = last_state_ ? last_state_->fault_flags : 0;
     const auto safety_state = last_state_ ? last_state_->safety_state : 0;
+    const auto health_snapshot = health_tracker_.snapshot(
+        std::chrono::duration<double>(SteadyClock::now().time_since_epoch()).count());
+    const bool extended_health = health_snapshot.updated_this_connection && health_snapshot.state &&
+        health_snapshot.state->extended && health_snapshot.health_age_s <= health_thresholds_.health_stale_after_s;
     if (!serial_.is_open()) {
       status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       status.message = last_serial_error_.empty() ? "serial port is closed" : last_serial_error_;
     } else if (!std::isfinite(age) || age > 0.5) {
       status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       status.message = "no recent CHASSIS_STATE frame";
-    } else if (fault_flags != 0 || safety_state == 7) {
+    } else if (extended_health ? ((health_snapshot.state->active_faults & ~std::uint16_t(8)) != 0 ||
+                                  health_snapshot.state->safety_state == 7)
+                               : (fault_flags != 0 || safety_state == 7)) {
       status.level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
       status.message = "STM32 reports a controller fault";
     } else {
@@ -297,6 +335,31 @@ class SerialBridgeNode : public rclcpp::Node {
     diagnostic_msgs::msg::DiagnosticArray message;
     message.header.stamp = get_clock()->now();
     message.status.push_back(status);
+    for (const auto& item : assess_health(health_snapshot, health_thresholds_, serial_.is_open())) {
+      diagnostic_msgs::msg::DiagnosticStatus health;
+      health.name = item.name;
+      health.hardware_id = "stm32f103rbt6";
+      health.level = static_cast<std::uint8_t>(item.level);
+      health.message = item.message;
+      for (const auto& entry : item.values) {
+        diagnostic_msgs::msg::KeyValue value; value.key = entry.first; value.value = entry.second;
+        health.values.push_back(value);
+      }
+      if (item.name == "learm/health/communication") {
+        const auto host_counter = [&health](const char* key, std::uint64_t count) {
+          diagnostic_msgs::msg::KeyValue value;
+          value.key = key; value.value = std::to_string(count); health.values.push_back(value);
+        };
+        host_counter("host_crc_errors", stats.crc_errors);
+        host_counter("host_cobs_errors", stats.cobs_errors);
+        host_counter("host_frames_dropped", stats.frames_dropped);
+        for (auto& value : health.values) {
+          if (value.key == "detail") value.value += "; host RX CRC=" + std::to_string(stats.crc_errors) +
+              ", dropped=" + std::to_string(stats.frames_dropped);
+        }
+      }
+      message.status.push_back(health);
+    }
     diagnostic_publisher_->publish(message);
   }
 
@@ -312,6 +375,8 @@ class SerialBridgeNode : public rclcpp::Node {
   DecoderStats cumulative_stats_{};
   std::uint64_t payload_format_errors_{};
   TelemetryTracker tracker_;
+  HealthTracker health_tracker_;
+  HealthThresholds health_thresholds_;
   std::optional<ChassisState> last_state_;
   std::optional<std::uint32_t> last_firmware_timestamp_ms_;
   std::unique_ptr<MecanumOdometry> odometry_;

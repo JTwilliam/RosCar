@@ -9,6 +9,7 @@ Run on Raspberry Pi 4B, Ubuntu 22.04 + ROS 2 Humble.
   all       IMU + STM32 bridge + EKF + optional lidar + measured mounting TFs
   imu       IMU only (keep stationary during calibration)
   chassis   STM32 bridge + EKF (IMU and mounting TF run separately)
+  bridge    STM32 bridge only: encoder/odom/health; no IMU/EKF/lidar needed
   lidar     STL06N only; mounting TF runs separately
   imu-tf    measured base_link -> imu_link static TF
   lidar-tf  measured base_link -> laser static TF
@@ -24,7 +25,7 @@ extra=()
 for arg in "$@"; do
   if [[ "$arg" == --dry-run ]]; then dry_run=true; else extra+=("$arg"); fi
 done
-case "$mode" in all|imu|chassis|lidar|imu-tf|lidar-tf) ;; *) usage; fail "Unknown mode: $mode" ;; esac
+case "$mode" in all|imu|chassis|bridge|lidar|imu-tf|lidar-tf) ;; *) usage; fail "Unknown mode: $mode" ;; esac
 load_config
 port="${STM32_PORT:-/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0}"
 baud="${STM32_BAUD:-115200}"
@@ -59,7 +60,15 @@ if [[ "$mode" == lidar || ( "$mode" == all && "$with_lidar" == true ) ]]; then
   load_overlay "${LIDAR_INSTALL:-$ROSCAR_ROOT/pi_ws/install/pi_runtime}"
   require_package ldlidar
 fi
+if [[ "$mode" == bridge ]]; then
+  load_overlay "${PI_INSTALL:-$ROSCAR_ROOT/pi_ws/install/pi_runtime}"
+  require_package "$bridge_node_package"
+fi
 case "$mode" in
+  bridge)
+    run_command ros2 launch "$bridge_node_package" serial_bridge.launch.py \
+      "port:=$port" "baud:=$baud" "publish_tf:=false" "${extra[@]}"
+    ;;
   all)
     require_package tf2_ros
     run_command ros2 launch "$ROSCAR_ROOT/pi_ws/scripts/pi_system.launch.py" \

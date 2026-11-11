@@ -6,7 +6,7 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 find_package(ament_cmake REQUIRED)
 
-add_library(learm_bridge_core STATIC src/protocol.cpp src/odometry.cpp src/serial_port.cpp)
+add_library(learm_bridge_core STATIC src/protocol.cpp src/odometry.cpp src/serial_port.cpp src/health.cpp)
 target_compile_features(learm_bridge_core PUBLIC cxx_std_17)
 target_include_directories(learm_bridge_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -19,6 +19,7 @@ install(TARGETS learm_replay DESTINATION lib/${PROJECT_NAME})
 install(TARGETS learm_bridge_core EXPORT export_learm_bridge_core ARCHIVE DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch/ DESTINATION share/${PROJECT_NAME}/launch)
+install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
 
 # Retain the original learning switch for existing build directories.
 option(LEARM_BUILD_STUDENT_NODE "Build the ROS 2 serial bridge node" ON)
@@ -46,6 +47,9 @@ if(BUILD_TESTING)
   add_executable(test_core test/test_core.cpp)
   target_link_libraries(test_core PRIVATE learm_bridge_core util)
   add_test(NAME learm_core COMMAND test_core)
+  add_executable(test_health test/test_health.cpp)
+  target_link_libraries(test_health PRIVATE learm_bridge_core)
+  add_test(NAME learm_health COMMAND test_health)
   add_test(NAME learm_python_parity
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check_python_parity.py
             $<TARGET_FILE:learm_replay>)
@@ -54,8 +58,13 @@ if(BUILD_TESTING)
     add_test(NAME learm_ros_bridge
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/test_ros_bridge.py
               $<TARGET_FILE:serial_bridge_node>)
+    add_test(NAME learm_ros_health
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/test_ros_health.py
+              $<TARGET_FILE:serial_bridge_node>)
+    set_tests_properties(learm_ros_health PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE
+      ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;ROS_DOMAIN_ID=175;ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_logs")
     set_tests_properties(learm_ros_bridge PROPERTIES TIMEOUT 60
-      RUN_SERIAL TRUE ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;ROS_DOMAIN_ID=173;ROS_LOCALHOST_ONLY=1;ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_logs")
+      RUN_SERIAL TRUE ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1;ROS_DOMAIN_ID=173;ROS_LOG_DIR=${CMAKE_CURRENT_BINARY_DIR}/ros_logs")
   endif()
 endif()
 

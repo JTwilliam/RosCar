@@ -4,6 +4,12 @@
 
 C++17 STM32 串口桥，已实现原 Python `LeArmSerialBridge` 的串口接收、COBS/CRC32C 解码、原始编码器、麦轮里程计、可选 TF、重连和诊断功能。IMU 仍为 Python，雷达和 EKF 继续复用现有组件。
 
+## 健康状态扩展（2026-11-11）
+
+支持0x83原44字节和schema1的128字节健康帧，新增独立健康超时、当前/历史故障、心跳/资源/机械臂/通信/安全7项标准诊断。配置 `config/health.yaml`；独立launch参数 `params_file`，EKF组合参数 `health_params_file`。上位机host_ws执行 `bash start.sh health` 只订阅话题；树莓派pi_ws执行 `bash start.sh bridge` 可只启动odom和健康，无需IMU/EKF/雷达。Python回退桥不解析健康扩展。
+
+见[完整健康说明](../../../docs/健康遥测与监视.md)。任务heartbeat按快照采样年龄比较，健康快照不推进即使持续来帧也会STALE；监视器另行检查桥停止。未知owner和机械臂query不编造为OK。
+
 ## 编译与测试（笔记本 WSL Ubuntu 22.04 / Humble）
 
 ```bash
@@ -17,6 +23,8 @@ colcon --log-base log/cpp_bridge_full build \
 # 当前WSL的FastDDS跨进程消息传输异常；本机测试使用已安装的CycloneDDS。
 # 只影响当前测试终端，不改树莓派/上位机的已验证DDS配置。
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+# 2026-11-11本机DDS验证使用非localhost-only；实际机器人配置不变。
+export ROS_LOCALHOST_ONLY=0
 unset CYCLONEDDS_URI FASTRTPS_DEFAULT_PROFILES_FILE FASTDDS_DEFAULT_PROFILES_FILE
 colcon --log-base log/cpp_bridge_full test \
   --build-base build/cpp_bridge_full --install-base install/cpp_bridge_full \
@@ -51,13 +59,13 @@ ros2 launch learm_bridge_cpp serial_bridge.launch.py \
 ros2 launch learm_bridge_cpp chassis_ekf.launch.py
 ```
 
-该组合依赖已编译的 `icm20948_ros2` 配置包和 robot_localization，并强制桥 `publish_tf=false`，由 EKF 唯一发布 `odom → base_link`。项目整套脚本可在本地配置中设 `BRIDGE_IMPL=cpp`，默认仍保留 python 便于板上分阶段切换。
+该组合依赖已编译的 `icm20948_ros2` 配置包和 robot_localization，并强制桥 `publish_tf=false`，由 EKF 唯一发布 `odom → base_link`。项目整套脚本可在本地配置中设 `BRIDGE_IMPL=cpp`，旧配置可保留python回退，新pi.env.example默认cpp。
 
 ## 兼容接口
 
 - `/learm/wheel_encoders`：Int32MultiArray，FR、RR、FL、RL 原始累计值。
 - `/odom`：nav_msgs/Odometry，保留 vx/vy/wz，header 使用 ROS 时钟，速度按 STM32 采样 dt。
-- `/diagnostics`：DiagnosticArray，状态名 `learm_serial_bridge`，硬件 `stm32f103rbt6`；兼容原监视器字段，包括帧率、帧龄、固件状态、电池/电机和解码计数。
+- `/diagnostics`：DiagnosticArray，保留状态名 `learm_serial_bridge`，追加 `learm/health/*` 七项，硬件 `stm32f103rbt6`；兼容原监视器字段，包括帧率、帧龄、固件状态、电池/电机和解码计数。
 - `publish_tf=true` 时发布 `odom → base_link`，直接运行与独立 launch 默认 true；EKF 组合固定 false。
 
 所有原参数保留：port、baud、read_chunk_size、diagnostics_period_s、reconnect_period_s、wheel_radius_m、wheel_base_m、track_width_m、encoder_counts_per_revolution、odom_frame、base_frame、publish_tf、twist_covariance_diagonal。默认值与 Python 一致。串口支持常见 Linux 速率 9600/19200/38400/57600/115200/230400；其他正值会诊断打开失败并重试，不支持 pyserial 的自定义任意速率。

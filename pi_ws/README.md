@@ -66,6 +66,19 @@ bash start.sh lidar-tf
 
 `chassis`包含桥+EKF；IMU和安装TF需要另有进程提供。更换STM32路径可修改pi.env，或 `bash start.sh chassis port:=/dev/ttyUSB0`。
 
+## 健康遥测最小启动（树莓派）
+
+当前仅验收底盘和串口时，无需先启IMU/EKF/雷达。更新固件健康扩展、编译C++桥，并在pi.env设 `BRIDGE_IMPL=cpp` 后：
+
+```bash
+bash start.sh bridge --dry-run
+bash start.sh bridge
+```
+
+此模式只由一个桥进程打开串口，发布编码器、odom及健康诊断，默认不发布TF，不依赖robot_localization。不能与all/chassis或另一个串口桥同时运行。上位机另开终端在host_ws执行 `bash start.sh health`，它只订阅ROS话题。旧Python回退桥暂不解析扩展健康消息，使用本功能须选cpp。
+
+阈值配置见 `src/learm_bridge_cpp/config/health.yaml`；独立桥可用 `bash start.sh bridge params_file:=/绝对路径/health.yaml`。完整行为、未知字段及实机验收见[健康遥测说明](../docs/健康遥测与监视.md)。
+
 ## 4. 检查（树莓派）
 
 另一个终端：

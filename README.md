@@ -67,6 +67,12 @@ STM32原始轮序FR、RR、FL、RL。桥输出`/odom`的vx、vy、wz，保留麦
 
 两个主机通过DDS传输，ROS_DOMAIN_ID一致、ROS_LOCALHOST_ONLY=0。网络地址按Ubuntu现场配置，不能把旧Windows共享网络192.168.137.x当作必然。各自主机保留已验证的RMW/DDS设置和时间同步。
 
+## 健康遥测与实时监视
+
+FreeRTOS下位机HEALTH_STATE与底盘数据复用同一串口；树莓派C++桥发布标准`/diagnostics`，上位机在host_ws运行 `bash start.sh health`，Python只订阅ROS话题，不打开串口。树莓派新增 `bash start.sh bridge` 最小模式（不依赖IMU/EKF/雷达）。当前/历史故障分开，健康快照或桥诊断停止均自动STALE/OFFLINE，急停与Arm空闲不会被当作软件崩溃。
+
+跨端说明与固件本地工程范围见[健康遥测与监视](docs/健康遥测与监视.md)。下位机源码位于独立本地工程，不随本仓库拉取，需在原工程编译后由用户安排烧录。
+
 ## 当前迁移状态与验证
 
 C++底盘桥已有编码器/odom/可选TF、非阻塞串口、重连和兼容诊断；IMU仍为Python，雷达本来就是C++，EKF复用robot_localization。[C++说明](pi_ws/src/learm_bridge_cpp/README.md)、[迁移路线](docs/C++迁移路线.md)、[验证范围](docs/进展与验证.md)。

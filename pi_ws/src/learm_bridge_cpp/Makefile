@@ -7,7 +7,7 @@ CPPFLAGS += -Iinclude
 CXXFLAGS ?= -O2 -g
 CXXFLAGS += -std=c++17 -Wall -Wextra -Wpedantic -Werror
 DEPFLAGS = -MMD -MP
-CORE_OBJS = $(BUILD_DIR)/protocol.o $(BUILD_DIR)/odometry.o $(BUILD_DIR)/serial_port.o
+CORE_OBJS = $(BUILD_DIR)/protocol.o $(BUILD_DIR)/odometry.o $(BUILD_DIR)/serial_port.o $(BUILD_DIR)/health.o
 LIBRARY = $(BUILD_DIR)/liblearm_bridge_core.a
 
 .PHONY: all test parity help
@@ -31,8 +31,15 @@ $(BUILD_DIR)/test_core.o: test/test_core.cpp | $(BUILD_DIR)
 $(BUILD_DIR)/test_core: $(BUILD_DIR)/test_core.o $(LIBRARY)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -lutil -o $@
 
-test: $(BUILD_DIR)/test_core $(BUILD_DIR)/learm_replay
+$(BUILD_DIR)/test_health.o: test/test_health.cpp | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/test_health: $(BUILD_DIR)/test_health.o $(LIBRARY)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+test: $(BUILD_DIR)/test_core $(BUILD_DIR)/test_health $(BUILD_DIR)/learm_replay
 	$(BUILD_DIR)/test_core
+	$(BUILD_DIR)/test_health
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) test/check_python_parity.py $(BUILD_DIR)/learm_replay
 
 parity: $(BUILD_DIR)/learm_replay
@@ -42,4 +49,4 @@ help:
 	@echo 'make / make test / make -n / make BUILD_DIR=build/debug CXXFLAGS="-O0 -g -std=c++17"'
 	@echo 'ROS 2 uses CMake/colcon; src/serial_bridge_node.cpp is your exercise.'
 
--include $(CORE_OBJS:.o=.d) $(BUILD_DIR)/replay.d $(BUILD_DIR)/test_core.d
+-include $(CORE_OBJS:.o=.d) $(BUILD_DIR)/replay.d $(BUILD_DIR)/test_core.d $(BUILD_DIR)/test_health.d

@@ -1,0 +1,10 @@
+learm_serial_bridge:
+  ros__parameters:
+    # Health freshness uses steady host time and HEALTH_STATE snapshot progression.
+    health_stale_after_s: 0.5
+    health_offline_after_s: 2.0
+    # DEFAULT, CHASSIS, SERIAL, ARM, HEALTH; compare snapshot ages, no host-age addition.
+    task_deadlines_ms: [100, 50, 100, 500, 250]
+    minimum_heap_bytes: 1024
+    stack_warning_words: [32, 64, 80, 80, 40]
+    chassis_max_age_ms: 100

@@ -24,7 +24,7 @@ git clone https://github.com/JTwilliam/RosCar.git ~/RosCar
 sudo apt install build-essential python3-colcon-common-extensions \
   ros-humble-ament-cmake ros-humble-rviz2 ros-humble-rclpy \
   ros-humble-sensor-msgs ros-humble-geometry-msgs ros-humble-tf2-ros \
-  ros-humble-visualization-msgs
+  ros-humble-visualization-msgs ros-humble-diagnostic-msgs
 ```
 
 编译显示工作区：
@@ -111,7 +111,31 @@ bash host_ws/start.sh imu-view imu_topic:=/imu/data
 
 `--dry-run` 会检查本地配置、安装环境和包可用性并打印命令，不启动GUI或节点。需要先完成构建；没有 `host.env` 时会明确提示配置缺失。
 
-## 5. 包结构与来源
+## 5. 纯订阅健康终端（无需图形桌面）
+
+在上位机工作区完成构建、配置host.env后：
+
+```bash
+cd ~/RosCar/host_ws
+bash start.sh health --dry-run
+bash start.sh health
+# 可选阈值，ROS参数形式：
+bash start.sh health --ros-args -p stale_after_s:=0.5 -p offline_after_s:=2.0 -p refresh_hz:=5.0
+```
+
+该模式只检查显示包、rclpy、diagnostic_msgs，不要求DISPLAY或rviz2，不打开串口、不依赖serial、不发送控制。订阅 `/diagnostics`，只接受名称为 `learm/health/link`、`chassis`、`arm`、`communication`、`safety`、`resources`、`tasks`（后六项同样带 `learm/health/` 前缀）的诊断。桥尚未提供这些诊断时显示未知和OFFLINE；普通桥诊断或其他设备消息不会让健康链路变成ONLINE。
+
+Link状态同时检查两个单调时间年龄：桥link诊断停止更新的年龄，以及桥报告health_age_s加上自收到该诊断经过的时间。任一达到0.5s显示STALE，达到2s显示OFFLINE；桥明确上报OFFLINE/STALE时也直接降级，link诊断等级STALE不显示在线。收到新OK诊断也不能掩盖过期的health_age_s。没有health_age_s时新诊断显示UNKNOWN，随后仍按桥诊断年龄降级。ONLINE只代表报文新鲜，不代表安全允许运动或无故障。
+
+显示固件、uptime、安全状态、owner/event、当前故障与历史故障、最近故障、各组件健康等级/detail。安全状态与诊断健康等级分开显示；例如arm的IDLE只是detail，不会被监视器推测成故障。tasks的heartbeat_age_ms/stack_free_words按已知固件顺序Default、Chassis、Serial、Arm、Health显示；若有五项task_names则优先采用。未提供阈值或字段就显示未知，不猜测。链路或组件自身诊断过期时，组件健康显示STALE，避免保留旧OK造成误解。全部五个栈值有效时才显示全体最小值；缺项时只附已知项最小值并保持全体最小为未知。
+
+仅TTY清屏，非TTY最多每秒一个完整文本快照，Ctrl+C正常退出。stale_after_s、offline_after_s、refresh_hz必须有限且为正，offline_after_s必须大于stale_after_s。纯逻辑单元测试可直接运行，无需ROS导入：
+
+```bash
+python3 src/roscar_visualization/test_health_monitor.py
+```
+
+## 6. 包结构与来源
 
 ```text
 host_ws/
@@ -126,9 +150,10 @@ host_ws/
     ├── launch/imu_view.launch.py
     ├── rviz/desktop.rviz
     ├── rviz/imu.rviz
-    └── scripts/imu_viewer.py
+    ├── scripts/imu_viewer.py
+    └── scripts/health_monitor.py
 ```
 
 `desktop.rviz` 来源为仓库原 `config/desktop.rviz`；`imu.rviz` 与 `imu_viewer.py` 来源为 `pi_ws/src/icm20948_ros2` 的原显示实现。完整复制显示逻辑，仅增加脚本shebang、独立执行入口和来源说明，未引入传感器包依赖。原包 MIT 许可证已复制到显示包的 `LICENSE` 并随安装保留。
 
-本次仅创建显示工作区源码；实际构建、启动与双机通信验证应按当前主任务的验证结果记录。本工作区未声称进行上位机现场GUI或树莓派硬件验证。
+健康监视完整协议、阈值和固件更新见[健康遥测与监视](../docs/健康遥测与监视.md)。本机WSL已构建并完成显示/健康单测及实际桥+监视进程E2E；双机通信验证应按目标主机记录。本工作区未声称进行上位机现场GUI或树莓派硬件验证。

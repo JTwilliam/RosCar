@@ -14,10 +14,12 @@ def generate_launch_description():
         DeclareLaunchArgument('port', default_value='/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0'),
         DeclareLaunchArgument('baud', default_value='115200'),
         DeclareLaunchArgument('params_file', default_value=str(imu / 'config/ekf.yaml')),
+        DeclareLaunchArgument('health_params_file', default_value=str(own / 'config/health.yaml')),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(str(own / 'launch/serial_bridge.launch.py')),
                                  launch_arguments={'port': LaunchConfiguration('port'),
                                                    'baud': LaunchConfiguration('baud'),
-                                                   'publish_tf': 'false'}.items()),
+                                                   'publish_tf': 'false',
+                                                   'params_file': LaunchConfiguration('health_params_file')}.items()),
         IncludeLaunchDescription(PythonLaunchDescriptionSource(str(imu / 'launch/ekf.launch.py')),
                                  launch_arguments={'params_file': LaunchConfiguration('params_file')}.items()),
     ])
