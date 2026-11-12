@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the external LeArm Keil source list with ARM GCC, without flashing."""
+"""Build the maintained LeArm Keil source list with ARM GCC, without flashing."""
 import argparse
 import hashlib
 import json
@@ -10,6 +10,8 @@ import shutil
 import struct
 import subprocess
 import xml.etree.ElementTree as ET
+
+from check_stm32_project import DEFAULT_SOURCE, validate_project
 
 
 def run(args):
@@ -22,13 +24,15 @@ def cmake_path(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', required=True, type=Path)
+    parser.add_argument('--source', default=DEFAULT_SOURCE, type=Path)
     parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[1] / 'build/stm32')
     parser.add_argument('--toolchain-bin', type=Path)
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
-    if not re.search(r'\brobot_health_init\s*\(', (source / 'Core/Src/main.c').read_text()):
-        parser.error('main.c is missing robot_health_init; apply firmware/patches/health-startup.patch first')
+    try:
+        validate_project(source)
+    except (OSError, ValueError, ET.ParseError) as error:
+        parser.error(str(error))
     compiler = shutil.which('arm-none-eabi-gcc') if args.toolchain_bin is None else str(args.toolchain_bin.resolve() / 'arm-none-eabi-gcc')
     if not compiler or not Path(compiler).is_file():
         parser.error('install gcc-arm-none-eabi or supply --toolchain-bin')
@@ -122,10 +126,16 @@ target_link_libraries(LeArm.elf PRIVATE m)
     prefix = compiler.parent / 'arm-none-eabi-'
     elf, binary, hexfile = build / 'LeArm.elf', output / 'LeArm.bin', output / 'LeArm.hex'
     startup = subprocess.check_output([str(prefix) + 'objdump', '-d', '--disassemble=main', elf], text=True)
-    health_call, kernel_call = startup.find('<robot_health_init>'), startup.find('<osKernelInitialize>')
-    if not (0 <= health_call < kernel_call):
-        raise RuntimeError('linked main must initialize robot health before the RTOS kernel')
-    print('PASS linked main: robot_health_init before osKernelInitialize')
+    calls = [startup.find(f'<{name}>') for name in
+             ('robot_health_init', 'osKernelInitialize', 'MX_FREERTOS_Init', 'osKernelStart')]
+    if any(position < 0 for position in calls) or calls != sorted(calls):
+        raise RuntimeError('linked main must initialize health and RTOS objects before starting the kernel')
+    setup = subprocess.check_output([str(prefix) + 'objdump', '-d',
+                                     '--disassemble=MX_FREERTOS_Init', elf], text=True)
+    safety_call, worker_call = setup.find('<robot_safety_init>'), setup.find('<osThreadNew>')
+    if not (0 <= safety_call < worker_call):
+        raise RuntimeError('linked RTOS startup must initialize safety before creating workers')
+    print('PASS linked startup: health -> kernel initialize -> safety -> workers -> kernel start')
     run([str(prefix) + 'objcopy', '-O', 'binary', elf, binary])
     run([str(prefix) + 'objcopy', '-O', 'ihex', elf, hexfile])
     image = binary.read_bytes()

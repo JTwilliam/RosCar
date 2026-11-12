@@ -1,0 +1,10 @@
+# Preserve vendor/CubeMX source bytes across Linux/Windows checkouts.
+* -text whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab,cr-at-eol
+*.lib binary
+*.md text eol=lf
+tests/*.sh text eol=lf
+tests/*.py text eol=lf
+tests/test_safety_startup.c text eol=lf
+tests/stubs/*.h text eol=lf
+# ST's original changelog uses a seven-equals section divider.
+Middlewares/Third_Party/FreeRTOS/Source/st_readme.txt conflict-marker-size=32

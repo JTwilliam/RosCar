@@ -58,6 +58,7 @@ pi_ws/
   src/ldlidar/                雷达ROS包
   src/ldlidar_driver/         相邻SDK源码，非独立ROS包
 scripts/                     共用函数、兼容入口与编排测试
+firmware/LeArm_APP_rtos/      完整STM32 App源码、Keil工程、依赖与回归测试
 references/                  厂商/原固件参考，不能当完整STM32工程烧录
 ```
 
@@ -71,11 +72,11 @@ STM32原始轮序FR、RR、FL、RL。桥输出`/odom`的vx、vy、wz，保留麦
 
 FreeRTOS下位机HEALTH_STATE与底盘数据复用同一串口；树莓派C++桥发布标准`/diagnostics`，上位机在host_ws运行 `bash start.sh health`，Python只订阅ROS话题，不打开串口。树莓派新增 `bash start.sh bridge` 最小模式（不依赖IMU/EKF/雷达）。当前/历史故障分开，健康快照或桥诊断停止均自动STALE/OFFLINE，急停与Arm空闲不会被当作软件崩溃。
 
-跨端说明与固件本地工程范围见[健康遥测与监视](docs/健康遥测与监视.md)。下位机源码位于独立本地工程，不随本仓库拉取。
+跨端说明见[健康遥测与监视](docs/健康遥测与监视.md)。完整下位机App现已纳入本仓库 `firmware/LeArm_APP_rtos`，随git pull同步；原外部目录保留作来源副本。
 
-Ubuntu现已支持从外部 `/mnt/data/LeArm_APP_rtos` 完整编译IAP应用bin，通过SCP传到树莓派，复用现有YMODEM下载器；新增RTOS STOP/BOOT握手工具。命令、分区及当前实机故障记录见[STM32本地编译与IAP](docs/STM32本地编译与IAP.md)。2026-11-12已编译/传输/核验，当前下位机FAULT且有MOTOR故障位，尚未实际刷写。
+Ubuntu可用 `python3 scripts/build_stm32.py` 从仓库内App完整编译，通过SCP传到树莓派，复用现有YMODEM及RTOS STOP/BOOT握手工具。用户本次改用Keil/ST-Link：打开 `firmware/LeArm_APP_rtos/MDK-ARM/LeArm.uvprojx`，完整操作见[App说明](firmware/LeArm_APP_rtos/README.md)。当前软件检查通过，尚未执行Keil或实际刷写。
 
-同日OFFLINE排查找到固件漏调用健康初始化，造成有效CRC报文内发送未初始化栈内容；旧54,624字节产物也受影响。已修复外部源码并保存[可复现补丁](firmware/README.md)，修复版54,752字节已传到树莓派`ubuntu_20261112_health_init`，尚未刷写。健康显示现区分帧接收与快照年龄，具体原因和未知字段边界见[健康排查](docs/健康遥测与监视.md)。
+同日排查确认健康和安全模块均漏初始化：前者造成无效健康快照，后者导致持续FAULT。仓库内App已补齐启动顺序并保留未初始化/真实故障的拒绝逻辑，详见[修复总结与Keil验收](docs/STM32App启动修复与Keil烧录.md)。旧54,624字节和54,752字节bin均未补齐安全初始化，不再用于本次升级；新的GCC检查产物54,956字节仍不代表Keil/板上验收。健康显示区分帧接收与快照年龄，不通过放宽时限掩盖固件问题。
 
 ## 当前迁移状态与验证
 

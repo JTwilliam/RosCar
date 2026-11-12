@@ -4,6 +4,7 @@
 - 维护主机是 Ubuntu。用户已要求后续本项目持续维护此仓库；相关已完成改动应在验证后提交并正常推送，提交主题以 [Ubuntu主机上传] 开头。
 - 编辑本仓库中的源码，不要回到上级目录的历史散落副本继续维护。不要在 /mnt/data 的父级 Git 仓库执行项目提交。
 - 改动前检查 Git 状态及远端更新，保留用户未提交的工作。不要强制推送、覆盖远端历史或提交无关文件。
+- STM32完整App现维护在firmware/LeArm_APP_rtos，Keil入口为MDK-ARM/LeArm.uvprojx；外部下载目录只作来源副本。初始化顺序必须为health→kernel initialize→safety→workers→kernel start；保留App分区0x08004000/0x1BC00，不绕过FAULT/STOP/BOOT授权。修改后运行项目检查、安全/健康回归及完整ARM构建；Keil与板上验收单独说明。
 - pi_ws/src/learm_bridge 是 STM32 串口解码和麦轮里程计；pi_ws/src/icm20948_ros2 是 IMU、EKF 配置及可视化。
 - 雷达已迁入 pi_ws/src/ldlidar 与 pi_ws/src/ldlidar_driver，两者必须保持相邻；ldlidar_driver 是源文件目录，不是独立 ROS 包。旧 lidar_ws 不再构建。
 - host_ws 是上位机纯显示工作区；pi_ws 是树莓派采集/处理工作区。两端命令分别写入各自 README、build.sh、start.sh；构建限定 --base-paths src，产物使用 host_runtime/pi_runtime，避免复用移动前缓存。

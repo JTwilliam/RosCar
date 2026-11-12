@@ -1,0 +1,24 @@
+# Keil output and local debugger/editor settings; keep the App scatter file.
+/MDK-ARM/LeArm/*
+!/MDK-ARM/LeArm/LeArm.sct
+*.uvguix.*
+*.uvoptx
+*.dbgconf
+*.scvd
+*.o
+*.d
+*.crf
+*.axf
+*.elf
+*.map
+*.hex
+*.bin
+*.htm
+*.html
+*.sct.bak
+/build/
+/.settings/
+/.vscode/
+/.mxproject
+
+# LeArm.lib is a required vendor input, not a generated build product.

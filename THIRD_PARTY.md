@@ -6,4 +6,5 @@
 - pi_ws/src/icm20948_ros2/LICENSE 保留原 MIT 许可；learm_bridge/package.xml 声明 Apache-2.0。未用仓库级许可证覆盖不同来源文件。
 - host_ws/src/roscar_visualization 的 IMU 显示实现来自本仓库 icm20948_ros2/viewer.py，保留来源说明及原 MIT LICENSE；不包含硬件采集逻辑。
 - ROS 系统依赖由软件包管理器安装，不复制系统安装目录和二进制文件。
-- STM32构建工具读取外部LeArm工程，使用其中的ST HAL/CMSIS/启动/链接脚本、FreeRTOS、Hiwonder源码及原厂LeArm.lib；不把外部源码或二进制库复制到本仓库。生成的链接脚本保留原ST声明。IAP工具调用用户树莓派已有stm32_ota/ymodem_sender.py，不复制其实现；依赖和来源见docs/STM32本地编译与IAP.md。
+- 用户于2026-11-12要求将完整App纳入仓库：firmware/LeArm_APP_rtos来源为用户提供的/mnt/data/LeArm_APP_rtos，包含ST HAL、CMSIS、FreeRTOS、Hiwonder与U8g2源文件、启动/链接脚本、Keil工程及必需的原厂Hiwonder/Arm/src/LeArm.lib。保留原文件版权及CMSIS、ST HAL、ST Device、FreeRTOS随附许可证；U8g2的许可保留在源文件头。LeArm.lib按用户原工程保留，未取得其实现源码，不用仓库其他许可证重新授权它或Hiwonder文件。
+- 只导入当前App构建依赖，裁去未用CMSIS DSP/NN/预编译库、厂商大文档和生成产物。完整来源/入口见firmware/LeArm_APP_rtos/README.md；未复制系统工具链或Keil安装目录。Linux生成的链接脚本保留原ST声明。IAP工具调用用户树莓派已有stm32_ota/ymodem_sender.py，不复制其实现。

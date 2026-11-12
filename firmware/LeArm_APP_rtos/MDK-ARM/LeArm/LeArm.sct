@@ -1,0 +1,18 @@
+; STM32F103RBT6:
+; Flash:    0x08000000 - 0x0801FFFF, 128 KB
+; Boot:     0x08000000 - 0x08003FFF, 16 KB
+; App:      0x08004000 - 0x0801FBFF, 111 KB
+; Metadata: 0x0801FC00 - 0x0801FFFF, 1 KB
+
+LR_IROM1 0x08004000 0x0001BC00  {
+  ER_IROM1 0x08004000 0x0001BC00  {
+    *.o (RESET, +First)
+    *(InRoot$$Sections)
+    .ANY (+RO)
+    .ANY (+XO)
+  }
+
+  RW_IRAM1 0x20000000 0x00005000  {
+    .ANY (+RW +ZI)
+  }
+}
