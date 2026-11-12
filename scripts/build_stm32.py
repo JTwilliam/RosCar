@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--toolchain-bin', type=Path)
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
+    if not re.search(r'\brobot_health_init\s*\(', (source / 'Core/Src/main.c').read_text()):
+        parser.error('main.c is missing robot_health_init; apply firmware/patches/health-startup.patch first')
     compiler = shutil.which('arm-none-eabi-gcc') if args.toolchain_bin is None else str(args.toolchain_bin.resolve() / 'arm-none-eabi-gcc')
     if not compiler or not Path(compiler).is_file():
         parser.error('install gcc-arm-none-eabi or supply --toolchain-bin')
@@ -119,6 +121,11 @@ target_link_libraries(LeArm.elf PRIVATE m)
     run(['cmake', '--build', build, '--parallel', min(os.cpu_count() or 2, 8)])
     prefix = compiler.parent / 'arm-none-eabi-'
     elf, binary, hexfile = build / 'LeArm.elf', output / 'LeArm.bin', output / 'LeArm.hex'
+    startup = subprocess.check_output([str(prefix) + 'objdump', '-d', '--disassemble=main', elf], text=True)
+    health_call, kernel_call = startup.find('<robot_health_init>'), startup.find('<osKernelInitialize>')
+    if not (0 <= health_call < kernel_call):
+        raise RuntimeError('linked main must initialize robot health before the RTOS kernel')
+    print('PASS linked main: robot_health_init before osKernelInitialize')
     run([str(prefix) + 'objcopy', '-O', 'binary', elf, binary])
     run([str(prefix) + 'objcopy', '-O', 'ihex', elf, hexfile])
     image = binary.read_bytes()

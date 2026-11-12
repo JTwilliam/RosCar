@@ -187,6 +187,9 @@ std::vector<HealthDiagnostic> assess_health(const HealthSnapshot& snap, const He
         ", age="+(s->extended?age(s->command_age_ms):"unknown")+" ms";
     if(s && i==5) detail += "; minimum heap="+std::to_string(s->minimum_heap_bytes)+" bytes";
     if(s && i==4) detail += std::string("; ")+safety_name(s->safety_state);
+    if(s && i==0 && !fresh && serial_open && snap.updated_this_connection &&
+       snap.receive_age_s<=t.health_stale_after_s)
+      detail += "; health frames arriving but snapshot timestamp not advancing";
     add(ds[i],"detail",detail);
   }
   if(fresh) link.message="ONLINE";

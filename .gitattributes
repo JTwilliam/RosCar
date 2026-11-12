@@ -2,3 +2,5 @@
 scripts/*.sh text eol=lf
 host_ws/*.sh text eol=lf
 pi_ws/*.sh text eol=lf
+# Firmware patch includes CRLF context from CubeMX main.c; preserve those bytes.
+firmware/patches/*.patch -text whitespace=-blank-at-eol,-space-before-tab,cr-at-eol

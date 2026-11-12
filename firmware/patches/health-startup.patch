@@ -1,0 +1,118 @@
+--- a/Core/Src/main.c
++++ b/Core/Src/main.c
+@@ -35,6 +35,7 @@
+ #include "buzzer.h"
+ #include "robot_arm.h"
+ #include "adc_sample.h"
++#include "RobotHealth.h"
+ 
+ /* USER CODE END Includes */
+ 
+@@ -122,6 +123,9 @@
+   adc_sample_init();
+   HAL_Delay(1000);
+ 	
++  /* Initialize observations before any RTOS task can publish a heartbeat. */
++  robot_health_init(HAL_GetTick());
++
+   /* USER CODE END 2 */
+ 
+   /* Init scheduler */
+--- a/Core/Inc/RobotHealth.h
++++ b/Core/Inc/RobotHealth.h
+@@ -49,7 +49,8 @@
+ void robot_health_safety_event(uint16_t reason, uint32_t timestamp_ms);
+ void robot_health_note_history(uint16_t bits, uint32_t timestamp_ms);
+ void robot_health_tx_drop(void);
+-void robot_health_get_snapshot(HealthState_t *snapshot_out);
++/* False before initialization or for NULL; caller must not serialize output. */
++bool robot_health_get_snapshot(HealthState_t *snapshot_out);
+ void robot_health_reset_with_reason(uint16_t reason_code);
+ 
+ #ifdef __cplusplus
+--- a/Core/Src/RobotHealth.c
++++ b/Core/Src/RobotHealth.c
+@@ -169,16 +169,17 @@
+     taskEXIT_CRITICAL();
+ }
+ 
+-void robot_health_get_snapshot(HealthState_t *snapshot_out)
++bool robot_health_get_snapshot(HealthState_t *snapshot_out)
+ {
+     if (!robot_health_initialized || (snapshot_out == NULL)) {
+-        return;
++        return false;
+     }
+ 
+     taskENTER_CRITICAL();
+     refresh_observation(HAL_GetTick());
+     *snapshot_out = robot_health_state;
+     taskEXIT_CRITICAL();
++    return true;
+ }
+ 
+ void robot_health_set_current_faults(uint8_t source, uint16_t bits, uint32_t now_ms)
+--- a/Core/Src/SerialTask.c
++++ b/Core/Src/SerialTask.c
+@@ -395,10 +395,11 @@
+ 
+ static void serial_send_health_state(void)
+ {
+-    HealthState_t state;
++    HealthState_t state = {0};
+     uint8_t payload[ROBOT_HEALTH_WIRE_SIZE];
+ 
+-    robot_health_get_snapshot(&state);
++    /* Never publish an uninitialized stack snapshot if startup regresses. */
++    if (!robot_health_get_snapshot(&state)) return;
+     if (robot_health_wire_encode(&state, payload, sizeof(payload)) == 0U) return;
+     (void)serial_send_frame(ROBOT_MSG_HEALTH_STATE,
+                             payload,
+--- a/tests/test_health_state.c
++++ b/tests/test_health_state.c
+@@ -26,7 +26,7 @@
+ {
+     HealthState_t result;
+     (void)memset(&result, 0xA5, sizeof(result));
+-    robot_health_get_snapshot(&result);
++    assert(robot_health_get_snapshot(&result));
+     assert(critical_depth == 0U);
+     return result;
+ }
+@@ -36,6 +36,20 @@
+     assert(critical_depth == 0U);
+     host_tick = now;
+     robot_health_init(now);
++}
++
++static void test_snapshot_requires_initialization(void)
++{
++    HealthState_t output, expected;
++    (void)memset(&output, 0xA5, sizeof(output));
++    expected = output;
++    assert(!robot_health_initialized);
++    assert(!robot_health_get_snapshot(&output));
++    assert(memcmp(&output, &expected, sizeof(output)) == 0);
++    assert(!robot_health_get_snapshot(NULL));
++    fresh(123U);
++    assert(robot_health_get_snapshot(&output));
++    assert(output.timestamp_ms == 123U && output.schema == 1U);
+ }
+ 
+ static void test_init_unknown(void)
+@@ -276,6 +290,7 @@
+ #define RUN(test) do { test(); assert(critical_depth == 0U); puts("PASS " #test); } while (0)
+ int main(void)
+ {
++    RUN(test_snapshot_requires_initialization);
+     RUN(test_init_unknown);
+     RUN(test_heartbeat_updates_expiry_and_recovery);
+     RUN(test_i2c_recovery_and_repeated_rising_fault);
+@@ -286,6 +301,6 @@
+     RUN(test_estop_is_safety_state_not_current_fault);
+     RUN(test_command_unknown_valid_expired_and_recovery);
+     assert(critical_entries > 0U);
+-    puts("PASS RobotHealth host observation state: 9 groups; reset never called");
++    puts("PASS RobotHealth host observation state: 10 groups; reset never called");
+     return 0;
+ }

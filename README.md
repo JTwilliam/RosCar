@@ -75,6 +75,8 @@ FreeRTOS下位机HEALTH_STATE与底盘数据复用同一串口；树莓派C++桥
 
 Ubuntu现已支持从外部 `/mnt/data/LeArm_APP_rtos` 完整编译IAP应用bin，通过SCP传到树莓派，复用现有YMODEM下载器；新增RTOS STOP/BOOT握手工具。命令、分区及当前实机故障记录见[STM32本地编译与IAP](docs/STM32本地编译与IAP.md)。2026-11-12已编译/传输/核验，当前下位机FAULT且有MOTOR故障位，尚未实际刷写。
 
+同日OFFLINE排查找到固件漏调用健康初始化，造成有效CRC报文内发送未初始化栈内容；旧54,624字节产物也受影响。已修复外部源码并保存[可复现补丁](firmware/README.md)，修复版54,752字节已传到树莓派`ubuntu_20261112_health_init`，尚未刷写。健康显示现区分帧接收与快照年龄，具体原因和未知字段边界见[健康排查](docs/健康遥测与监视.md)。
+
 ## 当前迁移状态与验证
 
 C++底盘桥已有编码器/odom/可选TF、非阻塞串口、重连和兼容诊断；IMU仍为Python，雷达本来就是C++，EKF复用robot_localization。[C++说明](pi_ws/src/learm_bridge_cpp/README.md)、[迁移路线](docs/C++迁移路线.md)、[验证范围](docs/进展与验证.md)。

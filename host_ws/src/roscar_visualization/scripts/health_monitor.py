@@ -101,9 +101,14 @@ def format_health(state, now):
     values = link.get('values', {})
     get = lambda key: clean(values.get(key))
     bridge_age, health_age = state.ages(now)
+    receive_age = nonnegative(values.get('receive_age_s'))
+    if receive_age is not None and bridge_age is not None:
+        receive_age += bridge_age
     lines = [f'RosCar Health | Link {state.link_state(now)}',
-             '健康报文年龄: ' + number_text(health_age, 's') +
+             '健康快照年龄: ' + number_text(health_age, 's') +
+             ' | 帧接收年龄: ' + number_text(receive_age, 's') +
              ' | link诊断年龄: ' + number_text(bridge_age, 's'),
+             f'健康协议: {get("schema")} | 快照时间戳(ms): {get("health_timestamp_ms")}',
              f'固件: {get("firmware_id")} | uptime_ms: {get("uptime_ms")}',
              f'安全状态: {get("safety_state")} | owner: {get("owner")} | event: {get("last_event")}',
              f'当前故障: {get("active_faults")} | 历史故障: {get("historical_faults")}',

@@ -21,6 +21,9 @@ int main(){try{
  tracker.update(s,10);auto ds=b::assess_health(tracker.snapshot(10.1),t,true);check(ds.size()==7,"seven statuses");
  for(const auto& d:ds)check(d.level==b::HealthLevel::ok,"healthy (idle arm query unknown)");
  tracker.update(s,10.4);check(b::assess_health(tracker.snapshot(10.6),t,true)[0].message=="STALE","frozen snapshot");
+ const auto frozen=b::assess_health(tracker.snapshot(10.6),t,true)[0];
+ bool freeze_hint=false;for(const auto& item:frozen.values)if(item.first=="detail"&&item.second.find("snapshot timestamp not advancing")!=std::string::npos)freeze_hint=true;
+ check(freeze_hint,"arriving frozen health explains transport versus snapshot age");
  check(b::assess_health(tracker.snapshot(12.1),t,true)[0].message=="OFFLINE","offline");
  tracker.connected();check(tracker.snapshot(12.2).state.has_value()&&!tracker.snapshot(12.2).updated_this_connection,"reconnect retains stale data");
  s.timestamp_ms=0xfffffff0U;tracker.update(s,13);s.timestamp_ms=10;tracker.update(s,13.1);check(tracker.snapshot(13.2).health_age_s<.2,"rollover");

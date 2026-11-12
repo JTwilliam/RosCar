@@ -4,6 +4,12 @@
 
 ## 2026-11-12 实际结果
 
+**最新修复版优先使用：** 同日进一步检查发现健康模块未在启动时初始化，首轮54,624字节产物也存在此问题，不能作为本次健康监视修复版本刷入。外部源码现已补上启动初始化、快照失败返回值和发送保护；补丁保存在 [health-startup.patch](../firmware/patches/health-startup.patch)。本地源码已经应用，重新下载原工程时按 [firmware说明](../firmware/README.md) 应用补丁。
+
+当前修复产物是 `/mnt/data/RosCar/build/stm32-health-init/LeArm.bin`，54,752字节，SHA256 `a4be9521d3ab535c3d3f043386a27ccc2aa17c6380ea3d3f182ec61c9400718c`；已传到树莓派 `~/stm32_ota/ubuntu_20261112_health_init/` 并校验一致。完整链接检查确认 `main` 在 `osKernelInitialize` 前调用 `robot_health_init`。仍未刷写或复位下位机，当前运行的仍是旧44字节固件。
+
+下面54,624字节和旧目录记录仅保留首轮历史，不用于后续下载：
+
 - Ubuntu 本地 ARM GCC 10.3.1 完整编译、链接成功：124个编译单元及原厂 `LeArm.lib`，不是仅编译健康测试对象。
 - 新固件：`/mnt/data/RosCar/build/stm32/LeArm.bin`，54,624字节，SHA256为 `0e6a60d7712b060f30873a6635356b4e3a9dc8e4a2d43dd1db679674f19811e0`。
 - 同时生成HEX、ELF、MAP、栈用量报告和输入文件哈希清单 `manifest.json`；这些构建产物不提交Git。
@@ -28,13 +34,14 @@ python3 scripts/build_stm32.py --source /mnt/data/LeArm_APP_rtos
 cd /mnt/data/RosCar
 python3 scripts/build_stm32.py \
   --source /mnt/data/LeArm_APP_rtos \
+  --output build/stm32-health-init \
   --toolchain-bin "$HOME/.local/share/roscar-arm-toolchain/usr/bin"
-python3 scripts/stm32_update.py --file build/stm32/LeArm.bin
+python3 scripts/stm32_update.py --file build/stm32-health-init/LeArm.bin
 ```
 
 默认输出到仓库 `build/stm32`，可用 `--output` 指定独立目录。复用同一输出目录时保留同一编译器；切换工具链应选择新的输出目录。外部工程原来的Windows `build/Debug` 缓存不参与构建。
 
-构建脚本从Keil工程读取C源文件、包含目录、宏和静态库，不使用原来不完整的CubeMX CMake业务源列表。Windows ARMASM启动文件替换为外部工程现有GNU启动文件。生成目录内做两项兼容适配：`Kinematics.h`转到实际小写头文件；超声波驱动的静态数组长度从 `const static uint8_t` 改为同值enum常量，不改滤波窗口。外部原始源码不改写。
+构建脚本从Keil工程读取C源文件、包含目录、宏和静态库，不使用原来不完整的CubeMX CMake业务源列表。Windows ARMASM启动文件替换为外部工程现有GNU启动文件。生成目录内做两项兼容适配：`Kinematics.h`转到实际小写头文件；超声波驱动的静态数组长度从 `const static uint8_t` 改为同值enum常量，不改滤波窗口。这两项构建适配不改写外部源；健康启动修复则已在外部源码直接修正，使Keil构建也获得修复。
 
 链接脚本保留ST原声明与GNU启动符号，Flash布局按Keil scatter核对：
 
@@ -54,12 +61,12 @@ python3 scripts/stm32_update.py --file build/stm32/LeArm.bin
 Ubuntu执行，目录可换成新的版本名以保留旧固件：
 
 ```bash
-ssh admin@192.168.137.100 'mkdir -p ~/stm32_ota/ubuntu_20261112'
-scp build/stm32/LeArm.bin build/stm32/LeArm.hex build/stm32/manifest.json \
-  admin@192.168.137.100:~/stm32_ota/ubuntu_20261112/
-sha256sum build/stm32/LeArm.bin
+ssh admin@192.168.137.100 'mkdir -p ~/stm32_ota/ubuntu_20261112_health_init'
+scp build/stm32-health-init/LeArm.bin build/stm32-health-init/LeArm.hex build/stm32-health-init/manifest.json \
+  admin@192.168.137.100:~/stm32_ota/ubuntu_20261112_health_init/
+sha256sum build/stm32-health-init/LeArm.bin
 ssh admin@192.168.137.100 \
-  'sha256sum ~/stm32_ota/ubuntu_20261112/LeArm.bin; python3 ~/stm32_ota/ymodem_sender.py --file ~/stm32_ota/ubuntu_20261112/LeArm.bin --dry-run'
+  'sha256sum ~/stm32_ota/ubuntu_20261112_health_init/LeArm.bin; python3 ~/stm32_ota/ymodem_sender.py --file ~/stm32_ota/ubuntu_20261112_health_init/LeArm.bin --dry-run'
 ```
 
 IP以现场配置为准；密码与密钥不写入仓库。`scp`只是复制文件，`--dry-run`只校验文件，都不会刷写STM32。
@@ -85,7 +92,7 @@ python3 scripts/stm32_update.py \
 cd ~/RosCar
 python3 scripts/stm32_update.py \
   --port /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0 \
-  --file ~/stm32_ota/ubuntu_20261112/LeArm.bin --execute
+  --file ~/stm32_ota/ubuntu_20261112_health_init/LeArm.bin --execute
 ```
 
 默认 `--mode rtos`：发送STOP_ALL(0x12)，等待对应序列号的成功ACK；发送ENTER_BOOTLOADER(0x13)，payload携带刚完成的STOP序列号，再等成功ACK。任何超时/NACK立即停止，不重试运动命令，不自动切换旧协议或强制复位。随后调用树莓派原有 `/home/admin/stm32_ota/ymodem_sender.py` 的YMODEM传输，等待 `BL:OK`；可用 `--sender` 指定该脚本位置。需要 `python3-serial`，不需要安装ROS才能刷写。

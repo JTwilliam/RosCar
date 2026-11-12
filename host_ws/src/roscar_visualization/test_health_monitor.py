@@ -31,6 +31,16 @@ class HealthTest(unittest.TestCase):
         state.update([status('link', health_age_s='2.1')], 2.0)
         self.assertEqual(state.link_state(2.0), 'OFFLINE')
 
+    def test_arriving_frames_do_not_hide_frozen_snapshot(self):
+        state = monitor.HealthState()
+        state.update([status('link', health_age_s='90', receive_age_s='0.05',
+                             health_timestamp_ms='0', schema='legacy')], 10)
+        text = monitor.format_health(state, 10.1)
+        self.assertIn('Link OFFLINE', text)
+        self.assertIn('健康快照年龄: 90.1s', text)
+        self.assertIn('帧接收年龄: 0.15s', text)
+        self.assertIn('健康协议: legacy | 快照时间戳(ms): 0', text)
+
     def test_unrelated_and_component_diagnostics_do_not_refresh_link(self):
         state = monitor.HealthState()
         state.update([status('link', health_age_s='0')], 1.0)
