@@ -71,7 +71,9 @@ STM32原始轮序FR、RR、FL、RL。桥输出`/odom`的vx、vy、wz，保留麦
 
 FreeRTOS下位机HEALTH_STATE与底盘数据复用同一串口；树莓派C++桥发布标准`/diagnostics`，上位机在host_ws运行 `bash start.sh health`，Python只订阅ROS话题，不打开串口。树莓派新增 `bash start.sh bridge` 最小模式（不依赖IMU/EKF/雷达）。当前/历史故障分开，健康快照或桥诊断停止均自动STALE/OFFLINE，急停与Arm空闲不会被当作软件崩溃。
 
-跨端说明与固件本地工程范围见[健康遥测与监视](docs/健康遥测与监视.md)。下位机源码位于独立本地工程，不随本仓库拉取，需在原工程编译后由用户安排烧录。
+跨端说明与固件本地工程范围见[健康遥测与监视](docs/健康遥测与监视.md)。下位机源码位于独立本地工程，不随本仓库拉取。
+
+Ubuntu现已支持从外部 `/mnt/data/LeArm_APP_rtos` 完整编译IAP应用bin，通过SCP传到树莓派，复用现有YMODEM下载器；新增RTOS STOP/BOOT握手工具。命令、分区及当前实机故障记录见[STM32本地编译与IAP](docs/STM32本地编译与IAP.md)。2026-11-12已编译/传输/核验，当前下位机FAULT且有MOTOR故障位，尚未实际刷写。
 
 ## 当前迁移状态与验证
 

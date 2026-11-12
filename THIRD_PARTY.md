@@ -6,3 +6,4 @@
 - pi_ws/src/icm20948_ros2/LICENSE 保留原 MIT 许可；learm_bridge/package.xml 声明 Apache-2.0。未用仓库级许可证覆盖不同来源文件。
 - host_ws/src/roscar_visualization 的 IMU 显示实现来自本仓库 icm20948_ros2/viewer.py，保留来源说明及原 MIT LICENSE；不包含硬件采集逻辑。
 - ROS 系统依赖由软件包管理器安装，不复制系统安装目录和二进制文件。
+- STM32构建工具读取外部LeArm工程，使用其中的ST HAL/CMSIS/启动/链接脚本、FreeRTOS、Hiwonder源码及原厂LeArm.lib；不把外部源码或二进制库复制到本仓库。生成的链接脚本保留原ST声明。IAP工具调用用户树莓派已有stm32_ota/ymodem_sender.py，不复制其实现；依赖和来源见docs/STM32本地编译与IAP.md。
